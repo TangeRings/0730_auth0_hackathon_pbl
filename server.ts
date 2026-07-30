@@ -1,8 +1,13 @@
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
+import Stripe from "stripe";
 import { mockFallbackProject } from "./src/data/mockFallbackProject";
+
+const VALID_REASONS = ["seat_limit", "portfolio_publish"] as const;
+type CheckoutReason = typeof VALID_REASONS[number];
 
 async function startServer() {
   const app = express();
@@ -119,6 +124,56 @@ Generate a detailed 4-milestone project where students produce real verifiable e
       });
     } catch (err: unknown) {
       return res.status(500).json({ error: "Failed to generate portfolio" });
+    }
+  });
+
+  // API Route: Create Stripe Checkout Session
+  app.post("/api/create-checkout-session", async (req, res) => {
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    const priceId = process.env.STRIPE_PRICE_ID;
+    const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
+
+    if (!stripeKey) {
+      console.error("Missing STRIPE_SECRET_KEY environment variable.");
+      return res.status(500).json({ error: "Server misconfiguration: STRIPE_SECRET_KEY is not set." });
+    }
+    if (!priceId) {
+      console.error("Missing STRIPE_PRICE_ID environment variable.");
+      return res.status(500).json({ error: "Server misconfiguration: STRIPE_PRICE_ID is not set." });
+    }
+
+    const { reason, organizationId } = req.body as { reason?: string; organizationId?: string };
+
+    if (!reason || !VALID_REASONS.includes(reason as CheckoutReason)) {
+      return res.status(400).json({
+        error: `Invalid reason. Must be one of: ${VALID_REASONS.join(", ")}.`,
+      });
+    }
+    if (!organizationId || typeof organizationId !== "string" || organizationId.trim() === "") {
+      return res.status(400).json({ error: "organizationId is required and must be a non-empty string." });
+    }
+
+    try {
+      const stripe = new Stripe(stripeKey);
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: `${APP_URL}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${APP_URL}/?checkout=cancelled`,
+        metadata: { organizationId, reason },
+        subscription_data: { metadata: { organizationId, reason } },
+      });
+
+      if (!session.url) {
+        console.error("Stripe returned a session with no URL.", session.id);
+        return res.status(500).json({ error: "Stripe did not return a checkout URL. Please try again." });
+      }
+
+      return res.json({ url: session.url });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("Stripe checkout session error:", msg);
+      return res.status(500).json({ error: `Stripe error: ${msg}` });
     }
   });
 

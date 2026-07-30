@@ -1,24 +1,51 @@
 import React, { useState } from "react";
-import { Check, ShieldCheck, CreditCard, Sparkles, X, Users } from "lucide-react";
+import { Check, ShieldCheck, CreditCard, X, Users, AlertCircle } from "lucide-react";
+import { startStripeCheckout } from "../services/billingService";
+import type { CheckoutReason } from "../services/billingService";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onUpgradeSuccess: () => void;
-  reason?: "seat_limit" | "portfolio_publish";
+  reason?: CheckoutReason;
+  /** Pass the Auth0 org ID so the server can attach it to the Stripe session. */
+  organizationId?: string;
+  /** When true, skip the real Stripe endpoint and use the demo mock path instead. */
+  useMockCheckout?: boolean;
 }
 
-export const UpgradeModal: React.FC<Props> = ({ isOpen, onClose, onUpgradeSuccess, reason = "seat_limit" }) => {
+export const UpgradeModal: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  onUpgradeSuccess,
+  reason = "seat_limit",
+  organizationId = "org-acme",
+  useMockCheckout = false,
+}) => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleStripeCheckout = async () => {
     setIsProcessing(true);
-    // Simulate Stripe Checkout API boundary
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsProcessing(false);
-    onUpgradeSuccess();
+    setCheckoutError(null);
+
+    if (useMockCheckout) {
+      // Demo mode: simulate a short delay then call the mock success path
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setIsProcessing(false);
+      onUpgradeSuccess();
+      return;
+    }
+
+    try {
+      // Real mode: redirects the browser to Stripe; never returns on success
+      await startStripeCheckout(reason as CheckoutReason, organizationId);
+    } catch (err: unknown) {
+      setIsProcessing(false);
+      setCheckoutError(err instanceof Error ? err.message : "An unexpected error occurred. Please try again.");
+    }
   };
 
   const isSeatReason = reason === "seat_limit";
@@ -29,7 +56,8 @@ export const UpgradeModal: React.FC<Props> = ({ isOpen, onClose, onUpgradeSucces
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
+          disabled={isProcessing}
+          className="absolute top-5 right-5 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors disabled:opacity-40"
         >
           <X className="w-5 h-5" />
         </button>
@@ -97,12 +125,20 @@ export const UpgradeModal: React.FC<Props> = ({ isOpen, onClose, onUpgradeSucces
           </div>
         </div>
 
+        {/* Error message */}
+        {checkoutError && (
+          <div className="flex items-start gap-2.5 p-3 mb-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+            <span>{checkoutError}</span>
+          </div>
+        )}
+
         {/* Buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-end gap-3">
           <button
             onClick={onClose}
             disabled={isProcessing}
-            className="w-full sm:w-auto px-5 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+            className="w-full sm:w-auto px-5 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors disabled:opacity-40"
           >
             Go Back
           </button>
@@ -115,7 +151,7 @@ export const UpgradeModal: React.FC<Props> = ({ isOpen, onClose, onUpgradeSucces
             {isProcessing ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Simulating Stripe Checkout...</span>
+                <span>{useMockCheckout ? "Simulating Checkout…" : "Redirecting to Stripe…"}</span>
               </>
             ) : (
               <>
@@ -129,4 +165,3 @@ export const UpgradeModal: React.FC<Props> = ({ isOpen, onClose, onUpgradeSucces
     </div>
   );
 };
-

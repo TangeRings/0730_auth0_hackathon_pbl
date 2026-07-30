@@ -27,7 +27,7 @@ export const AppShell: React.FC<Props> = ({
   isDemoMode,
   children,
 }) => {
-  const navTabs: { key: DemoStep; label: string }[] = [
+  const allNavTabs: { key: DemoStep; label: string }[] = [
     { key: "course", label: "Course" },
     { key: "project", label: "Project" },
     { key: "roster", label: "Roster" },
@@ -36,6 +36,11 @@ export const AppShell: React.FC<Props> = ({
     { key: "portfolio", label: "Portfolio" },
     { key: "plan", label: "Plan" },
   ];
+
+  const studentOnlyTabs: DemoStep[] = ["evidence", "portfolio"];
+  const navTabs = currentUser.role === "student"
+    ? allNavTabs.filter((t) => studentOnlyTabs.includes(t.key))
+    : allNavTabs;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col selection:bg-indigo-100 selection:text-indigo-900">
@@ -107,7 +112,7 @@ export const AppShell: React.FC<Props> = ({
       </header>
 
       {/* Guided Demo Progress Bar */}
-      <DemoProgress currentStep={currentStep} onSelectStep={onSelectStep} isPublished={isPublished} />
+      <DemoProgress currentStep={currentStep} onSelectStep={onSelectStep} isPublished={isPublished} role={currentUser.role} />
 
       {/* Main View Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">{children}</main>

@@ -4,13 +4,40 @@ import { getSubscription, saveSubscription, getPortfolio, savePortfolio } from "
 export type CheckoutReason = "seat_limit" | "portfolio_publish";
 
 /**
- * Service boundary for Stripe Billing & Subscriptions.
- * In the prototype, startCheckout simulates a successful Stripe Checkout session.
+ * Real Stripe Checkout: POSTs to the Express server, then redirects the browser
+ * to the Stripe-hosted payment page. Returns only if the request itself fails
+ * (in which case it throws so the caller can surface an error).
+ */
+export async function startStripeCheckout(
+  reason: CheckoutReason,
+  organizationId: string
+): Promise<never> {
+  const res = await fetch("/api/create-checkout-session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason, organizationId }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? `Server error ${res.status}`);
+  }
+
+  const { url } = await res.json() as { url: string };
+  window.location.href = url;
+  // The browser is now redirecting — this promise never resolves normally.
+  await new Promise(() => {});
+  throw new Error("unreachable");
+}
+
+/**
+ * Demo-only mock: simulates a successful checkout without hitting Stripe.
+ * Only used when ?demo=true is in the URL.
  *
  * reason === "seat_limit"        → upgrades subscription only; portfolio is unchanged.
  * reason === "portfolio_publish" → upgrades subscription AND publishes the portfolio.
  */
-export async function startCheckout(
+export async function startMockCheckout(
   reason: CheckoutReason
 ): Promise<{ success: boolean; subscription: Subscription; portfolio: Portfolio }> {
   await new Promise((resolve) => setTimeout(resolve, 1200));

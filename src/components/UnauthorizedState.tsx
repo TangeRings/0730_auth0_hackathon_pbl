@@ -8,6 +8,7 @@ interface Props {
   requiredRole: "instructor" | "student";
   onSwitchRole: (user: SessionUser) => void;
   onGoBack?: () => void;
+  isDemoMode?: boolean;
 }
 
 export const UnauthorizedState: React.FC<Props> = ({
@@ -15,6 +16,7 @@ export const UnauthorizedState: React.FC<Props> = ({
   requiredRole,
   onSwitchRole,
   onGoBack,
+  isDemoMode = false,
 }) => {
   const targetUser = requiredRole === "instructor" ? instructorSession : studentSession;
 
@@ -56,12 +58,14 @@ export const UnauthorizedState: React.FC<Props> = ({
           </button>
         )}
 
-        <button
-          onClick={() => onSwitchRole(targetUser)}
-          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-xs"
-        >
-          Switch Demo Mode to {targetUser.name} ({targetUser.role})
-        </button>
+        {isDemoMode && (
+          <button
+            onClick={() => onSwitchRole(targetUser)}
+            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-xs"
+          >
+            Switch Demo Mode to {targetUser.name} ({targetUser.role})
+          </button>
+        )}
       </div>
     </div>
   );

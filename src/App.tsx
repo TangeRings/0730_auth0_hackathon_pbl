@@ -22,13 +22,14 @@ import {
   saveSingleArtifact,
   getPortfolio,
   getSubscription,
+  saveSubscription,
   getEnrolledStudents,
   saveEnrolledStudents,
   addEnrolledStudent,
   resetDemoData,
 } from "./services/dataService";
 import { candidateStudents } from "./data/mockData";
-import { startCheckout, publishPortfolio } from "./services/billingService";
+import { startMockCheckout, publishPortfolio } from "./services/billingService";
 
 import { AppShell } from "./components/AppShell";
 import { CourseInput } from "./components/CourseInput";
@@ -41,7 +42,7 @@ import { PlanManagementView } from "./components/PlanManagementView";
 import { UpgradeModal } from "./components/UpgradeModal";
 import { PublishedPortfolioModal } from "./components/PublishedPortfolioModal";
 import { UnauthorizedState } from "./components/UnauthorizedState";
-import { CheckCircle2, Sparkles } from "lucide-react";
+import { CheckCircle2, Clock } from "lucide-react";
 
 export default function App() {
   const { user: auth0User, logout } = useAuth0();
@@ -74,6 +75,8 @@ export default function App() {
   const [upgradeReason, setUpgradeReason] = useState<"seat_limit" | "portfolio_publish">("seat_limit");
   const [showPublishedModal, setShowPublishedModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // Persistent banner shown after returning from Stripe (no plan change until webhook)
+  const [checkoutBanner, setCheckoutBanner] = useState<"success" | "cancelled" | null>(null);
 
   // Sync state changes with storage
   useEffect(() => {
@@ -84,10 +87,26 @@ export default function App() {
     setEnrolledStudents(getEnrolledStudents());
   }, []);
 
-  // Keep currentUser in sync with Auth0 unless demo mode is active
+  // In real mode, wipe any mock-checkout subscription left in localStorage so paywalls fire correctly
+  useEffect(() => {
+    if (!isDemoMode) {
+      const sub = getSubscription();
+      if (sub.stripeCustomerId?.startsWith("cus_mock")) {
+        const fresh = saveSubscription({ organizationId: sub.organizationId, plan: "free", status: "active" });
+        setSubscription(fresh);
+      }
+    }
+  }, [isDemoMode]);
+
+  // Keep currentUser in sync with Auth0 unless demo mode is active.
+  // Students are routed directly to their workspace (evidence step).
   useEffect(() => {
     if (!isDemoMode && auth0User) {
-      setCurrentUser(mapAuth0UserToSession(auth0User));
+      const mapped = mapAuth0UserToSession(auth0User);
+      setCurrentUser(mapped);
+      if (mapped.role === "student") {
+        setCurrentStep("evidence");
+      }
     }
   }, [auth0User, isDemoMode]);
 
@@ -98,6 +117,24 @@ export default function App() {
       setToastMessage(null);
     }, 4000);
   };
+
+  // Handle ?checkout=success|cancelled returned from Stripe (runs after triggerToast is defined)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("checkout");
+    if (status === "success" || status === "cancelled") {
+      setCheckoutBanner(status);
+      if (status === "cancelled") {
+        triggerToast("Checkout cancelled — your plan is unchanged.");
+      }
+      // Strip checkout params from the URL without reloading
+      params.delete("checkout");
+      params.delete("session_id");
+      const newSearch = params.toString();
+      window.history.replaceState({}, "", newSearch ? `?${newSearch}` : window.location.pathname);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Switch identity — only reachable when demo mode is active
   const handleSwitchUser = (user: SessionUser) => {
@@ -208,12 +245,16 @@ export default function App() {
     saveEnrolledStudents(enrolledList);
     setEnrolledStudents(enrolledList);
 
-    // Show toast message
     triggerToast(`${selectedStudentIds.length} students enrolled successfully`);
 
-    // Switch Demo Mode to Maya Chen & continue automatically to Student Submission step
-    setCurrentUser(studentSession);
-    setCurrentStep("evidence");
+    if (isDemoMode) {
+      // Guided demo: auto-switch to Maya's seat so the reviewer can see the evidence step
+      setCurrentUser(studentSession);
+      setCurrentStep("evidence");
+    } else {
+      // Real mode: instructor stays instructor and moves to review student work
+      setCurrentStep("review");
+    }
   };
 
   // Roster email invite action
@@ -249,8 +290,14 @@ export default function App() {
 
   // Step 4 Action: Request Review -> move to Instructor Review
   const handleRequestReview = () => {
-    setCurrentUser(instructorSession);
-    setCurrentStep("review");
+    if (isDemoMode) {
+      // Guided demo: auto-switch to Dr. Nicole so the reviewer can approve immediately
+      setCurrentUser(instructorSession);
+      setCurrentStep("review");
+    } else {
+      // Real mode: student stays student; just confirm submission was received
+      triggerToast("Submitted! Your instructor will review your work.");
+    }
   };
 
   // Step 5 Action: Instructor Approves & Generates Portfolio -> move to Portfolio
@@ -271,10 +318,10 @@ export default function App() {
     }
   };
 
-  // Stripe Checkout Success Callback
+  // Demo-mode mock checkout success callback (only reachable when useMockCheckout=true)
   const handleUpgradeSuccess = async () => {
     setShowUpgradeModal(false);
-    const result = await startCheckout(upgradeReason);
+    const result = await startMockCheckout(upgradeReason);
     setSubscription(result.subscription);
     setPortfolio(result.portfolio);
 
@@ -307,6 +354,7 @@ export default function App() {
               currentUser={currentUser}
               requiredRole="instructor"
               onSwitchRole={handleSwitchUser}
+              isDemoMode={isDemoMode}
             />
           );
         }
@@ -324,6 +372,7 @@ export default function App() {
               currentUser={currentUser}
               requiredRole="instructor"
               onSwitchRole={handleSwitchUser}
+              isDemoMode={isDemoMode}
             />
           );
         }
@@ -355,6 +404,7 @@ export default function App() {
               currentUser={currentUser}
               requiredRole="instructor"
               onSwitchRole={handleSwitchUser}
+              isDemoMode={isDemoMode}
             />
           );
         }
@@ -378,6 +428,7 @@ export default function App() {
               currentUser={currentUser}
               requiredRole="student"
               onSwitchRole={handleSwitchUser}
+              isDemoMode={isDemoMode}
             />
           );
         }
@@ -397,6 +448,7 @@ export default function App() {
               currentUser={currentUser}
               requiredRole="instructor"
               onSwitchRole={handleSwitchUser}
+              isDemoMode={isDemoMode}
             />
           );
         }
@@ -431,6 +483,7 @@ export default function App() {
               currentUser={currentUser}
               requiredRole="instructor"
               onSwitchRole={handleSwitchUser}
+              isDemoMode={isDemoMode}
             />
           );
         }
@@ -466,6 +519,22 @@ export default function App() {
       onLogout={handleLogout}
       isDemoMode={isDemoMode}
     >
+      {/* Post-Stripe-Return Banner (persists until dismissed; no plan change yet) */}
+      {checkoutBanner === "success" && (
+        <div className="sticky top-16 z-40 w-full bg-indigo-600 text-white px-4 py-2.5 flex items-center justify-between gap-3 text-xs font-semibold shadow-md">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 shrink-0" />
+            <span>Payment received. Confirming your subscription — this may take a moment.</span>
+          </div>
+          <button
+            onClick={() => setCheckoutBanner(null)}
+            className="shrink-0 underline opacity-80 hover:opacity-100"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div className="fixed top-20 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl border border-slate-800 flex items-center gap-2.5 text-xs font-semibold animate-in fade-in slide-in-from-top-4 duration-200">
@@ -482,6 +551,8 @@ export default function App() {
         onClose={handleModalClose}
         onUpgradeSuccess={handleUpgradeSuccess}
         reason={upgradeReason}
+        organizationId={currentUser.organizationId}
+        useMockCheckout={isDemoMode}
       />
 
       {/* Published Portfolio View Modal */}

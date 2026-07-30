@@ -6,6 +6,7 @@ interface Props {
   currentStep: DemoStep;
   onSelectStep: (step: DemoStep) => void;
   isPublished: boolean;
+  role?: "instructor" | "student";
 }
 
 type StepDef = {
@@ -15,8 +16,8 @@ type StepDef = {
   icon: React.ReactNode;
 };
 
-export const DemoProgress: React.FC<Props> = ({ currentStep, onSelectStep, isPublished }) => {
-  const steps: StepDef[] = [
+export const DemoProgress: React.FC<Props> = ({ currentStep, onSelectStep, isPublished, role = "instructor" }) => {
+  const allSteps: StepDef[] = [
     { key: "course", label: "Course Input", number: 1, icon: <BookOpen className="w-3.5 h-3.5" /> },
     { key: "project", label: "AI Project", number: 2, icon: <Sparkles className="w-3.5 h-3.5" /> },
     { key: "roster", label: "Student Roster", number: 3, icon: <Users className="w-3.5 h-3.5" /> },
@@ -25,6 +26,13 @@ export const DemoProgress: React.FC<Props> = ({ currentStep, onSelectStep, isPub
     { key: "portfolio", label: "Executive Portfolio", number: 6, icon: <Award className="w-3.5 h-3.5" /> },
     { key: "plan", label: "Verify & Publish", number: 7, icon: <CreditCard className="w-3.5 h-3.5" /> },
   ];
+
+  const studentStepKeys: DemoStep[] = ["evidence", "portfolio"];
+  const steps = role === "student"
+    ? allSteps
+        .filter((s) => studentStepKeys.includes(s.key))
+        .map((s, idx) => ({ ...s, number: idx + 1 }))
+    : allSteps;
 
   const getStepIndex = (step: DemoStep) => steps.findIndex((s) => s.key === step);
   const currentIndex = getStepIndex(currentStep);
