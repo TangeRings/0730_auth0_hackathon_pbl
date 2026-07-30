@@ -129,6 +129,9 @@ Generate a detailed 4-milestone project where students produce real verifiable e
 
   // API Route: Create Stripe Checkout Session
   app.post("/api/create-checkout-session", async (req, res) => {
+    // #region agent log
+    console.log(`[debug-8d26c0] create-checkout-session HIT body=${JSON.stringify(req.body)} STRIPE_SECRET_KEY=${process.env.STRIPE_SECRET_KEY ? 'set' : 'MISSING'} STRIPE_PRICE_ID=${process.env.STRIPE_PRICE_ID ? 'set' : 'MISSING'}`);
+    // #endregion
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     const priceId = process.env.STRIPE_PRICE_ID;
     const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
@@ -194,6 +197,9 @@ Generate a detailed 4-milestone project where students produce real verifiable e
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`BlueQ Server running at http://0.0.0.0:${PORT}`);
+    // #region agent log
+    console.log(`[debug-8d26c0] server-startup routes registered: generate-project, generate-portfolio, create-checkout-session`);
+    // #endregion
   });
 }
 
