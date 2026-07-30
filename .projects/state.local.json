@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "project": {
+    "catalog": "prod",
+    "initializedAt": "2026-07-30T22:39:33.634Z",
+    "merchantDisplayName": "Silver Spark LLC",
+    "merchantId": "acct_1TfVWpAkb4Oh9V6I",
+    "projectId": "project_61V8QZJPYjjRjiNCy16UotUB1ASQiHfZaT8PPJ2PoU1A",
+    "projectName": "0730_auth0_hackathonv3"
+  },
+  "providers": {
+    "auth0": {
+      "accountRequestId": "facctrq_61V8QcbGqHPgn1GqR16UotUB1ASQiHfZaT8PPJ2PoO8u",
+      "configuration": {
+        "locality": "us",
+        "naming_prefix": "blueq"
+      },
+      "linkedAt": "2026-07-30T22:43:03.352Z",
+      "providerId": "prvdr_61UVctyxfLOj4FpVw5Bmi",
+      "providerName": "Auth0",
+      "redirectUrl": null,
+      "requestedAt": "2026-07-30T22:43:03.352Z",
+      "status": "complete"
+    }
+  },
+  "resources": {
+    "0730 Hackthon Oneline Learning": {
+      "configuration": {
+        "name": "0730 Hackthon Oneline Learning"
+      },
+      "createdAt": "2026-07-30T22:43:10.981Z",
+      "lastRevealedAt": "2026-07-30T22:43:11.263Z",
+      "lastStatus": "complete",
+      "name": "0730 Hackthon Oneline Learning",
+      "providerId": "prvdr_61UVctyxfLOj4FpVw5Bmi",
+      "providerName": "Auth0",
+      "resourceId": "fres_61V8QclXYe9yKtwjv16UotUB1ASQiHfZaT8PPJ2Po3VQ",
+      "serviceId": "client"
+    },
+    "auth0-plan": {
+      "configuration": {},
+      "createdAt": "2026-07-30T22:43:06.710Z",
+      "lastRevealedAt": "2026-07-30T22:43:06.871Z",
+      "lastStatus": "complete",
+      "name": "auth0-plan",
+      "providerId": "prvdr_61UVctyxfLOj4FpVw5Bmi",
+      "providerName": "Auth0",
+      "resourceId": "fres_61V8QcisNHsAOLzA216UotUB1ASQiHfZaT8PPJ2PoEnw",
+      "serviceId": "free"
+    }
+  }
+}

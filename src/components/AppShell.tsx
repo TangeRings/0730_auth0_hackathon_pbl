@@ -2,7 +2,7 @@ import React from "react";
 import { SessionUser, DemoStep } from "../types";
 import { DemoRoleSwitcher } from "./DemoRoleSwitcher";
 import { DemoProgress } from "./DemoProgress";
-import { Layers, RotateCcw, Shield, GraduationCap } from "lucide-react";
+import { Layers, RotateCcw, Shield, GraduationCap, LogOut } from "lucide-react";
 
 interface Props {
   currentUser: SessionUser;
@@ -11,6 +11,8 @@ interface Props {
   onSelectStep: (step: DemoStep) => void;
   isPublished: boolean;
   onResetDemo: () => void;
+  onLogout: () => void;
+  isDemoMode: boolean;
   children: React.ReactNode;
 }
 
@@ -21,6 +23,8 @@ export const AppShell: React.FC<Props> = ({
   onSelectStep,
   isPublished,
   onResetDemo,
+  onLogout,
+  isDemoMode,
   children,
 }) => {
   const navTabs: { key: DemoStep; label: string }[] = [
@@ -76,9 +80,11 @@ export const AppShell: React.FC<Props> = ({
             })}
           </nav>
 
-          {/* Right Controls: Role Switcher & User Profile */}
+          {/* Right Controls: Demo Override, Reset & Logout */}
           <div className="flex items-center gap-3">
-            <DemoRoleSwitcher currentUser={currentUser} onSwitchUser={onSwitchUser} />
+            {isDemoMode && (
+              <DemoRoleSwitcher currentUser={currentUser} onSwitchUser={onSwitchUser} />
+            )}
 
             <button
               onClick={onResetDemo}
@@ -86,6 +92,15 @@ export const AppShell: React.FC<Props> = ({
               className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors hidden sm:flex"
             >
               <RotateCcw className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={onLogout}
+              title="Sign out"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import {
   SessionUser,
   DemoStep,
@@ -11,6 +12,7 @@ import {
 import {
   instructorSession,
   studentSession,
+  mapAuth0UserToSession,
 } from "./services/sessionService";
 import {
   getCourse,
@@ -42,8 +44,14 @@ import { UnauthorizedState } from "./components/UnauthorizedState";
 import { CheckCircle2, Sparkles } from "lucide-react";
 
 export default function App() {
-  // Active demo session identity (Default: Dr. Nicole Wang)
-  const [currentUser, setCurrentUser] = useState<SessionUser>(instructorSession);
+  const { user: auth0User, logout } = useAuth0();
+
+  // ?demo=true enables the Guided Demo Override persona switcher
+  const isDemoMode = new URLSearchParams(window.location.search).get("demo") === "true";
+
+  // Primary identity comes from Auth0; demo switcher can override only when ?demo=true
+  const realUser = auth0User ? mapAuth0UserToSession(auth0User) : instructorSession;
+  const [currentUser, setCurrentUser] = useState<SessionUser>(realUser);
 
   // Active step in guided demo flow
   const [currentStep, setCurrentStep] = useState<DemoStep>("course");
@@ -76,6 +84,13 @@ export default function App() {
     setEnrolledStudents(getEnrolledStudents());
   }, []);
 
+  // Keep currentUser in sync with Auth0 unless demo mode is active
+  useEffect(() => {
+    if (!isDemoMode && auth0User) {
+      setCurrentUser(mapAuth0UserToSession(auth0User));
+    }
+  }, [auth0User, isDemoMode]);
+
   // Show auto-dismiss toast
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -84,10 +99,13 @@ export default function App() {
     }, 4000);
   };
 
-  // Switch identity in Demo Mode
+  // Switch identity — only reachable when demo mode is active
   const handleSwitchUser = (user: SessionUser) => {
     setCurrentUser(user);
   };
+
+  const handleLogout = () =>
+    logout({ logoutParams: { returnTo: window.location.origin } });
 
   // Reset demo data to clean slate
   const handleResetDemo = () => {
@@ -445,6 +463,8 @@ export default function App() {
       onSelectStep={(step) => setCurrentStep(step)}
       isPublished={portfolio.status === "published" && subscription.plan === "cohort_pro"}
       onResetDemo={handleResetDemo}
+      onLogout={handleLogout}
+      isDemoMode={isDemoMode}
     >
       {/* Toast Notification Banner */}
       {toastMessage && (

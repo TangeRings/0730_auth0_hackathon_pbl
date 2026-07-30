@@ -13,7 +13,7 @@ export const DemoRoleSwitcher: React.FC<Props> = ({ currentUser, onSwitchUser })
     <div className="flex items-center gap-2 bg-slate-100 border border-slate-200/80 rounded-full p-1 shadow-xs">
       <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-slate-500 uppercase tracking-wider">
         <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-        <span>Demo Mode:</span>
+        <span>Guided Demo Override:</span>
       </div>
 
       <button

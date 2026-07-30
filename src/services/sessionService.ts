@@ -1,4 +1,18 @@
+import { User } from "@auth0/auth0-react";
 import { SessionUser } from "../types";
+
+const INSTRUCTOR_EMAILS = ["niniwang.tange@gmail.com", "nicole@acme.edu"];
+
+export function mapAuth0UserToSession(user: User): SessionUser {
+  const email = user.email ?? "";
+  return {
+    id: user.sub ?? "unknown",
+    name: user.name ?? user.nickname ?? email,
+    email,
+    organizationId: "org-acme",
+    role: INSTRUCTOR_EMAILS.includes(email) ? "instructor" : "student",
+  };
+}
 
 export const instructorSession: SessionUser = {
   id: "user-nicole",
