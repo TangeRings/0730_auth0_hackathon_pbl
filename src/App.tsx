@@ -143,7 +143,7 @@ export default function App() {
           })),
           requiredEvidence: data.project.requiredEvidence || [],
           evaluationCriteria: data.project.evaluationCriteria || [],
-          status: "published",
+          status: "draft",
         };
 
         saveGeneratedProject(newTrack);
@@ -156,8 +156,11 @@ export default function App() {
     }
   };
 
-  // Step 2 Action: Publish to Students -> move to Roster
+  // Step 2 Action: Publish to Students -> mark track published, move to Roster
   const handlePublishToStudents = () => {
+    const published: ProjectTrack = { ...projectTrack, status: "published" };
+    saveGeneratedProject(published);
+    setProjectTrack(published);
     setCurrentStep("roster");
   };
 
@@ -238,9 +241,9 @@ export default function App() {
   };
 
   // Step 6 Action: Instructor clicks Verify and Publish
-  // If already on Cohort Pro, publish directly without opening Stripe modal.
+  // If already on an active Cohort Pro subscription, publish directly without opening Stripe modal.
   const handleVerifyAndPublish = () => {
-    if (subscription.plan === "cohort_pro") {
+    if (subscription.plan === "cohort_pro" && subscription.status === "active") {
       const updated = publishPortfolio();
       setPortfolio(updated);
       setShowPublishedModal(true);
