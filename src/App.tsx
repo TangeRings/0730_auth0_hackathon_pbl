@@ -6,26 +6,32 @@ import {
   StudentProject,
   Portfolio,
   Subscription,
-  EvidenceItem,
+  EnrolledStudent,
 } from "./types";
-import { instructorSession, studentSession, canCreateProject, canReviewPortfolio, canManageBilling } from "./services/sessionService";
+import {
+  instructorSession,
+  studentSession,
+} from "./services/sessionService";
 import {
   getCourse,
   getProjectTrack,
   saveGeneratedProject,
   getStudentProject,
-  saveEvidence,
+  saveSingleArtifact,
   getPortfolio,
-  savePortfolio,
   getSubscription,
-  saveSubscription,
+  getEnrolledStudents,
+  saveEnrolledStudents,
+  addEnrolledStudent,
   resetDemoData,
 } from "./services/dataService";
+import { candidateStudents } from "./data/mockData";
 import { startCheckout } from "./services/billingService";
 
 import { AppShell } from "./components/AppShell";
 import { CourseInput } from "./components/CourseInput";
 import { ProjectGenerator } from "./components/ProjectGenerator";
+import { StudentRosterView } from "./components/StudentRosterView";
 import { StudentEvidenceWorkspace } from "./components/StudentEvidenceWorkspace";
 import { InstructorReview } from "./components/InstructorReview";
 import { PortfolioTransformation } from "./components/PortfolioTransformation";
@@ -33,24 +39,33 @@ import { PlanManagementView } from "./components/PlanManagementView";
 import { UpgradeModal } from "./components/UpgradeModal";
 import { PublishedPortfolioModal } from "./components/PublishedPortfolioModal";
 import { UnauthorizedState } from "./components/UnauthorizedState";
+import { CheckCircle2, Sparkles } from "lucide-react";
 
 export default function App() {
-  // Current active demo session identity (Default: Dr. Nicole Wang)
+  // Active demo session identity (Default: Dr. Nicole Wang)
   const [currentUser, setCurrentUser] = useState<SessionUser>(instructorSession);
 
-  // Current active step in guided demo flow
+  // Active step in guided demo flow
   const [currentStep, setCurrentStep] = useState<DemoStep>("course");
 
   // Domain data states
+  const [candidates, setCandidates] = useState<EnrolledStudent[]>(candidateStudents);
   const [projectTrack, setProjectTrack] = useState<ProjectTrack>(getProjectTrack());
   const [studentProject, setStudentProject] = useState<StudentProject>(getStudentProject());
   const [portfolio, setPortfolio] = useState<Portfolio>(getPortfolio());
   const [subscription, setSubscription] = useState<Subscription>(getSubscription());
+  const [enrolledStudents, setEnrolledStudents] = useState<EnrolledStudent[]>(getEnrolledStudents());
+
+  // Roster selection state
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [pendingAttemptedStudentId, setPendingAttemptedStudentId] = useState<string | null>(null);
 
   // UI States
   const [isGeneratingProject, setIsGeneratingProject] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<"seat_limit" | "portfolio_publish">("seat_limit");
   const [showPublishedModal, setShowPublishedModal] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Sync state changes with storage
   useEffect(() => {
@@ -58,7 +73,16 @@ export default function App() {
     setStudentProject(getStudentProject());
     setPortfolio(getPortfolio());
     setSubscription(getSubscription());
+    setEnrolledStudents(getEnrolledStudents());
   }, []);
+
+  // Show auto-dismiss toast
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4000);
+  };
 
   // Switch identity in Demo Mode
   const handleSwitchUser = (user: SessionUser) => {
@@ -68,10 +92,14 @@ export default function App() {
   // Reset demo data to clean slate
   const handleResetDemo = () => {
     resetDemoData();
+    setCandidates(candidateStudents);
     setProjectTrack(getProjectTrack());
     setStudentProject(getStudentProject());
     setPortfolio(getPortfolio());
     setSubscription(getSubscription());
+    setEnrolledStudents(getEnrolledStudents());
+    setSelectedStudentIds([]);
+    setPendingAttemptedStudentId(null);
     setCurrentStep("course");
     setCurrentUser(instructorSession);
   };
@@ -128,54 +156,123 @@ export default function App() {
     }
   };
 
-  // Step 2 Action: Publish to Students -> move to Evidence
+  // Step 2 Action: Publish to Students -> move to Roster
   const handlePublishToStudents = () => {
+    setCurrentStep("roster");
+  };
+
+  // Toggle selection on Roster candidate list
+  const handleToggleSelectStudent = (studentId: string) => {
+    if (selectedStudentIds.includes(studentId)) {
+      setSelectedStudentIds((prev) => prev.filter((id) => id !== studentId));
+    } else {
+      const isCohortPro = subscription.plan === "cohort_pro";
+      const maxSeats = isCohortPro ? 30 : 3;
+
+      if (selectedStudentIds.length >= maxSeats) {
+        setPendingAttemptedStudentId(studentId);
+        setUpgradeReason("seat_limit");
+        setShowUpgradeModal(true);
+      } else {
+        setSelectedStudentIds((prev) => [...prev, studentId]);
+      }
+    }
+  };
+
+  // Action: Enroll Selected Students from Roster
+  const handleEnrollSelectedStudents = () => {
+    if (selectedStudentIds.length === 0) return;
+
+    const enrolledList = candidates.filter((std) => selectedStudentIds.includes(std.id));
+    saveEnrolledStudents(enrolledList);
+    setEnrolledStudents(enrolledList);
+
+    // Show toast message
+    triggerToast(`${selectedStudentIds.length} students enrolled successfully`);
+
+    // Switch Demo Mode to Maya Chen & continue automatically to Student Submission step
+    setCurrentUser(studentSession);
     setCurrentStep("evidence");
   };
 
-  // Step 3 Action: Student Submits Evidence
-  const handleAddEvidence = (item: EvidenceItem) => {
-    const updatedSp = saveEvidence(item);
+  // Roster email invite action
+  const handleInviteByEmail = (name: string, email: string) => {
+    const newStudent: EnrolledStudent = {
+      id: `std-${Date.now()}`,
+      name,
+      email,
+      projectStatus: "not_started",
+    };
+
+    // Add to available candidates list so it shows up in Available Learners
+    setCandidates((prev) => [...prev, newStudent]);
+
+    const isCohortPro = subscription.plan === "cohort_pro";
+    const maxSeats = isCohortPro ? 30 : 3;
+
+    if (selectedStudentIds.length < maxSeats) {
+      setSelectedStudentIds((prev) => [...prev, newStudent.id]);
+      triggerToast(`Added ${name} (${email}) to available learners and selected`);
+    } else {
+      triggerToast(`Added ${name} (${email}) to available learners`);
+    }
+  };
+
+  // Step 4 Action: Student Submits Single Primary Artifact
+  const handleSubmitArtifact = (artifactUrl: string, reflection?: string) => {
+    const updatedSp = saveSingleArtifact(artifactUrl, reflection);
     setStudentProject(updatedSp);
+    setEnrolledStudents(getEnrolledStudents());
+    triggerToast("Primary artifact submitted successfully! Status: Waiting for instructor review.");
   };
 
-  // Step 3 Action: Student Requests Review -> move to Instructor Review
+  // Step 4 Action: Request Review -> move to Instructor Review
   const handleRequestReview = () => {
-    setCurrentStep("review" as DemoStep);
+    setCurrentUser(instructorSession);
+    setCurrentStep("review");
   };
 
-  // Step 4 Action: Instructor Approves & Generates Portfolio -> move to Portfolio
+  // Step 5 Action: Instructor Approves & Generates Portfolio -> move to Portfolio
   const handleGeneratePortfolio = () => {
     setCurrentStep("portfolio");
   };
 
-  // Step 5 Action: Instructor clicks Verify and Publish -> open Stripe Upgrade Modal
+  // Step 6 Action: Instructor clicks Verify and Publish -> open Upgrade Modal
   const handleVerifyAndPublish = () => {
+    setUpgradeReason("portfolio_publish");
     setShowUpgradeModal(true);
   };
 
-  // Step 6 Action: Stripe Checkout Success Callback
+  // Stripe Checkout Success Callback
   const handleUpgradeSuccess = async () => {
     setShowUpgradeModal(false);
     const result = await startCheckout();
     setSubscription(result.subscription);
     setPortfolio(result.portfolio);
-    setShowPublishedModal(true);
+
+    // If there was an attempted 4th student selection, preserve it!
+    if (pendingAttemptedStudentId) {
+      if (!selectedStudentIds.includes(pendingAttemptedStudentId)) {
+        setSelectedStudentIds((prev) => [...prev, pendingAttemptedStudentId]);
+      }
+      setPendingAttemptedStudentId(null);
+      triggerToast("Upgraded to Cohort Pro! 30 seats unlocked.");
+    } else {
+      setShowPublishedModal(true);
+    }
   };
 
-  // Render main content area depending on active step & authorization
+  // Modal Go Back / Close Callback
+  const handleModalClose = () => {
+    setShowUpgradeModal(false);
+    // If user clicked Go Back during seat limit check, discard the 4th student attempt and keep only the first 3
+    setPendingAttemptedStudentId(null);
+  };
+
+  // Render view depending on step & authorization
   const renderCurrentView = () => {
     switch (currentStep) {
       case "course":
-        if (!canCreateProject(currentUser) && currentUser.role !== "student") {
-          return (
-            <UnauthorizedState
-              currentUser={currentUser}
-              requiredRole="instructor"
-              onSwitchRole={handleSwitchUser}
-            />
-          );
-        }
         return (
           <CourseInput
             onGenerateProject={handleGenerateProject}
@@ -184,7 +281,7 @@ export default function App() {
         );
 
       case "project":
-        if (!canCreateProject(currentUser)) {
+        if (currentUser.role === "student") {
           return (
             <UnauthorizedState
               currentUser={currentUser}
@@ -214,18 +311,41 @@ export default function App() {
           />
         );
 
+      case "roster":
+        if (currentUser.role === "student") {
+          return (
+            <UnauthorizedState
+              currentUser={currentUser}
+              requiredRole="instructor"
+              onSwitchRole={handleSwitchUser}
+            />
+          );
+        }
+        return (
+          <StudentRosterView
+            candidateStudents={candidates}
+            selectedStudentIds={selectedStudentIds}
+            subscription={subscription}
+            currentUser={currentUser}
+            onToggleSelectStudent={handleToggleSelectStudent}
+            onEnrollSelectedStudents={handleEnrollSelectedStudents}
+            onBackToProject={() => setCurrentStep("project")}
+            onInviteByEmail={handleInviteByEmail}
+          />
+        );
+
       case "evidence":
         return (
           <StudentEvidenceWorkspace
             studentProject={studentProject}
             currentUser={currentUser}
-            onAddEvidence={handleAddEvidence}
+            onSubmitArtifact={handleSubmitArtifact}
             onRequestReview={handleRequestReview}
           />
         );
 
-      case "review" as DemoStep:
-        if (!canReviewPortfolio(currentUser)) {
+      case "review":
+        if (currentUser.role === "student") {
           return (
             <UnauthorizedState
               currentUser={currentUser}
@@ -237,9 +357,10 @@ export default function App() {
         return (
           <InstructorReview
             studentProject={studentProject}
+            enrolledStudents={enrolledStudents.length > 0 ? enrolledStudents : candidates}
             currentUser={currentUser}
             onApprove={handleGeneratePortfolio}
-            onRequestRevision={() => alert("Revision request sent to student.")}
+            onRequestRevision={() => triggerToast("Revision request sent to student.")}
             onGeneratePortfolio={handleGeneratePortfolio}
           />
         );
@@ -251,8 +372,8 @@ export default function App() {
             studentProject={studentProject}
             subscription={subscription}
             onVerifyAndPublish={handleVerifyAndPublish}
-            onEditPortfolio={() => alert("Portfolio editor opened.")}
-            onRequestRevision={() => setCurrentStep("review" as DemoStep)}
+            onEditPortfolio={() => triggerToast("Portfolio editor opened.")}
+            onRequestRevision={() => setCurrentStep("review")}
           />
         );
 
@@ -261,7 +382,10 @@ export default function App() {
           <PlanManagementView
             subscription={subscription}
             currentUser={currentUser}
-            onOpenUpgradeModal={() => setShowUpgradeModal(true)}
+            onOpenUpgradeModal={() => {
+              setUpgradeReason("seat_limit");
+              setShowUpgradeModal(true);
+            }}
           />
         );
 
@@ -284,13 +408,22 @@ export default function App() {
       isPublished={portfolio.status === "published" && subscription.plan === "cohort_pro"}
       onResetDemo={handleResetDemo}
     >
+      {/* Toast Notification Banner */}
+      {toastMessage && (
+        <div className="fixed top-20 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl border border-slate-800 flex items-center gap-2.5 text-xs font-semibold animate-in fade-in slide-in-from-top-4 duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {renderCurrentView()}
 
       {/* Stripe Upgrade Modal */}
       <UpgradeModal
         isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
+        onClose={handleModalClose}
         onUpgradeSuccess={handleUpgradeSuccess}
+        reason={upgradeReason}
       />
 
       {/* Published Portfolio View Modal */}

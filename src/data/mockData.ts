@@ -1,4 +1,4 @@
-import { Course, ProjectTrack, StudentProject, Portfolio, Organization, Subscription } from "../types";
+import { Course, ProjectTrack, StudentProject, Portfolio, Organization, Subscription, EnrolledStudent } from "../types";
 import { mockFallbackProject } from "./mockFallbackProject";
 
 export const initialOrganization: Organization = {
@@ -12,6 +12,16 @@ export const initialSubscription: Subscription = {
   plan: "free",
   status: "active",
 };
+
+export const candidateStudents: EnrolledStudent[] = [
+  { id: "std-1", name: "Maya Chen", email: "maya@example.com", projectStatus: "not_started" },
+  { id: "std-2", name: "Alex Rivera", email: "alex@example.com", projectStatus: "not_started" },
+  { id: "std-3", name: "Jordan Lee", email: "jordan@example.com", projectStatus: "not_started" },
+  { id: "std-4", name: "Sofia Martinez", email: "sofia@example.com", projectStatus: "not_started" },
+  { id: "std-5", name: "Ethan Park", email: "ethan@example.com", projectStatus: "not_started" },
+];
+
+export const initialEnrolledStudents: EnrolledStudent[] = [];
 
 export const sampleCourse: Course = {
   id: "course-pm-101",
@@ -49,48 +59,11 @@ export const initialStudentProject: StudentProject = {
   projectTrackId: initialProjectTrack.id,
   studentId: "user-maya",
   studentName: "Maya Chen",
-  currentMilestone: 2,
-  progress: 50,
-  reviewStatus: "pending",
-  submittedReflection:
-    "The original concept focused on client scheduling. After three user interviews, the evidence clearly indicated that delayed invoice payments and lack of payment status visibility were much more severe pain points for freelance creators.",
-  evidence: [
-    {
-      id: "ev-01",
-      type: "note",
-      title: "User Interview Summary Notes",
-      content:
-        "• Freelancer A spends several hours chasing unpaid invoices each month.\n• Freelancer B does not know whether clients opened invoice PDFs.\n• Freelancer C experiences late milestone payments and lacks clear read receipts.",
-      submittedAt: "2026-07-28T10:30:00Z",
-      milestoneNumber: 1,
-    },
-    {
-      id: "ev-02",
-      type: "note",
-      title: "Synthesized Problem Statement",
-      content:
-        "Delayed invoice payments and missing read receipts came up consistently across all three user interviews as the primary source of financial anxiety for independent creators.",
-      submittedAt: "2026-07-29T14:15:00Z",
-      milestoneNumber: 2,
-    },
-    {
-      id: "ev-03",
-      type: "link",
-      title: "Interactive Figma Prototype",
-      content: "https://figma.com/file/paytrack-invoice-visibility-prototype",
-      submittedAt: "2026-07-30T09:00:00Z",
-      milestoneNumber: 3,
-    },
-    {
-      id: "ev-04",
-      type: "note",
-      title: "User Testing Feedback & Observations",
-      content:
-        "Users valued payment status visibility and automatic read receipts significantly more than automated calendar payment reminders.",
-      submittedAt: "2026-07-30T11:20:00Z",
-      milestoneNumber: 3,
-    },
-  ],
+  currentMilestone: 1,
+  progress: 0,
+  reviewStatus: "not_requested",
+  submittedReflection: "",
+  evidence: [],
 };
 
 export const initialPortfolio: Portfolio = {

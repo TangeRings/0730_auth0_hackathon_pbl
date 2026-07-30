@@ -108,4 +108,13 @@ export type GeneratedProject = {
   evaluationCriteria: string[];
 };
 
-export type DemoStep = "course" | "project" | "evidence" | "review" | "portfolio" | "plan";
+export type EnrolledStudent = {
+  id: string;
+  name: string;
+  email: string;
+  projectStatus: "not_started" | "pending_review" | "revision_requested" | "approved";
+  artifactUrl?: string;
+  submittedAt?: string;
+};
+
+export type DemoStep = "course" | "project" | "roster" | "evidence" | "review" | "portfolio" | "plan";

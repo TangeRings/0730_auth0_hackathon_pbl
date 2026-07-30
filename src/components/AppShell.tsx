@@ -26,8 +26,9 @@ export const AppShell: React.FC<Props> = ({
   const navTabs: { key: DemoStep; label: string }[] = [
     { key: "course", label: "Course" },
     { key: "project", label: "Project" },
+    { key: "roster", label: "Roster" },
     { key: "evidence", label: "Evidence" },
-    { key: "review" as DemoStep, label: "Review" },
+    { key: "review", label: "Review" },
     { key: "portfolio", label: "Portfolio" },
     { key: "plan", label: "Plan" },
   ];
