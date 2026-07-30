@@ -1,0 +1,6 @@
+{
+  "name": "BlueQ Project Layer",
+  "description": "Adds a real-world project layer to online courses, transforming course materials into applied student projects and instructor-verified portfolios.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
