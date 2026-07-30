@@ -1,5 +1,5 @@
 import React from "react";
-import { Portfolio, StudentProject, Subscription } from "../types";
+import { Portfolio, StudentProject, Subscription, SessionUser } from "../types";
 import {
   Award,
   CheckCircle2,
@@ -18,6 +18,7 @@ interface Props {
   portfolio: Portfolio;
   studentProject: StudentProject;
   subscription: Subscription;
+  currentUser: SessionUser;
   onVerifyAndPublish: () => void;
   onEditPortfolio: () => void;
   onRequestRevision: () => void;
@@ -27,6 +28,7 @@ export const PortfolioTransformation: React.FC<Props> = ({
   portfolio,
   studentProject,
   subscription,
+  currentUser,
   onVerifyAndPublish,
   onEditPortfolio,
   onRequestRevision,
@@ -61,21 +63,25 @@ export const PortfolioTransformation: React.FC<Props> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={onEditPortfolio}
-            className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5"
-          >
-            <Edit className="w-3.5 h-3.5" />
-            <span>Edit Portfolio</span>
-          </button>
+          {currentUser.role === "instructor" && (
+            <>
+              <button
+                onClick={onEditPortfolio}
+                className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                <span>Edit Portfolio</span>
+              </button>
 
-          <button
-            onClick={onRequestRevision}
-            className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Request Revision</span>
-          </button>
+              <button
+                onClick={onRequestRevision}
+                className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Request Revision</span>
+              </button>
+            </>
+          )}
 
           {isVerified ? (
             <div className="flex items-center gap-2">
@@ -95,7 +101,7 @@ export const PortfolioTransformation: React.FC<Props> = ({
                 </a>
               )}
             </div>
-          ) : (
+          ) : currentUser.role === "instructor" ? (
             <button
               onClick={onVerifyAndPublish}
               className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 hover:scale-[1.01]"
@@ -104,6 +110,11 @@ export const PortfolioTransformation: React.FC<Props> = ({
               <span>Verify and Publish</span>
               <ArrowRight className="w-4 h-4" />
             </button>
+          ) : (
+            <span className="px-4 py-2 bg-slate-100 text-slate-500 font-semibold text-xs rounded-xl flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5" />
+              Awaiting Instructor Review
+            </span>
           )}
         </div>
       </div>

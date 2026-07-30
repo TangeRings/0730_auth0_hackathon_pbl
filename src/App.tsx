@@ -26,7 +26,7 @@ import {
   resetDemoData,
 } from "./services/dataService";
 import { candidateStudents } from "./data/mockData";
-import { startCheckout } from "./services/billingService";
+import { startCheckout, publishPortfolio } from "./services/billingService";
 
 import { AppShell } from "./components/AppShell";
 import { CourseInput } from "./components/CourseInput";
@@ -237,16 +237,23 @@ export default function App() {
     setCurrentStep("portfolio");
   };
 
-  // Step 6 Action: Instructor clicks Verify and Publish -> open Upgrade Modal
+  // Step 6 Action: Instructor clicks Verify and Publish
+  // If already on Cohort Pro, publish directly without opening Stripe modal.
   const handleVerifyAndPublish = () => {
-    setUpgradeReason("portfolio_publish");
-    setShowUpgradeModal(true);
+    if (subscription.plan === "cohort_pro") {
+      const updated = publishPortfolio();
+      setPortfolio(updated);
+      setShowPublishedModal(true);
+    } else {
+      setUpgradeReason("portfolio_publish");
+      setShowUpgradeModal(true);
+    }
   };
 
   // Stripe Checkout Success Callback
   const handleUpgradeSuccess = async () => {
     setShowUpgradeModal(false);
-    const result = await startCheckout();
+    const result = await startCheckout(upgradeReason);
     setSubscription(result.subscription);
     setPortfolio(result.portfolio);
 
@@ -273,6 +280,15 @@ export default function App() {
   const renderCurrentView = () => {
     switch (currentStep) {
       case "course":
+        if (currentUser.role === "student") {
+          return (
+            <UnauthorizedState
+              currentUser={currentUser}
+              requiredRole="instructor"
+              onSwitchRole={handleSwitchUser}
+            />
+          );
+        }
         return (
           <CourseInput
             onGenerateProject={handleGenerateProject}
@@ -335,6 +351,15 @@ export default function App() {
         );
 
       case "evidence":
+        if (currentUser.role === "instructor") {
+          return (
+            <UnauthorizedState
+              currentUser={currentUser}
+              requiredRole="student"
+              onSwitchRole={handleSwitchUser}
+            />
+          );
+        }
         return (
           <StudentEvidenceWorkspace
             studentProject={studentProject}
@@ -371,6 +396,7 @@ export default function App() {
             portfolio={portfolio}
             studentProject={studentProject}
             subscription={subscription}
+            currentUser={currentUser}
             onVerifyAndPublish={handleVerifyAndPublish}
             onEditPortfolio={() => triggerToast("Portfolio editor opened.")}
             onRequestRevision={() => setCurrentStep("review")}
@@ -378,6 +404,15 @@ export default function App() {
         );
 
       case "plan":
+        if (currentUser.role === "student") {
+          return (
+            <UnauthorizedState
+              currentUser={currentUser}
+              requiredRole="instructor"
+              onSwitchRole={handleSwitchUser}
+            />
+          );
+        }
         return (
           <PlanManagementView
             subscription={subscription}
