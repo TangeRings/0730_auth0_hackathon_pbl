@@ -1,7 +1,7 @@
 import { User } from "@auth0/auth0-react";
 import { SessionUser } from "../types";
 
-const INSTRUCTOR_EMAILS = ["niniwang.tange@gmail.com", "nicole@acme.edu"];
+const INSTRUCTOR_EMAILS = ["niniwang.tange@gmail.com", "nicole@acme.edu", "nicolecheyennew@gmail.com"];
 
 export function mapAuth0UserToSession(user: User): SessionUser {
   const email = user.email ?? "";
