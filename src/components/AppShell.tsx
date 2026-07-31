@@ -91,13 +91,16 @@ export const AppShell: React.FC<Props> = ({
               <DemoRoleSwitcher currentUser={currentUser} onSwitchUser={onSwitchUser} />
             )}
 
-            <button
-              onClick={onResetDemo}
-              title="Reset Demo State"
-              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors hidden sm:flex"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
+            {currentUser.role === "instructor" && (
+              <button
+                onClick={onResetDemo}
+                title="Reset all demo data"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Demo</span>
+              </button>
+            )}
 
             <button
               onClick={onLogout}

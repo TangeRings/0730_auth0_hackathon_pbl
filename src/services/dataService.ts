@@ -172,4 +172,5 @@ export function resetDemoData(): void {
   localStorage.removeItem(STORAGE_KEYS.PORTFOLIO);
   localStorage.removeItem(STORAGE_KEYS.SUBSCRIPTION);
   localStorage.removeItem(STORAGE_KEYS.STUDENTS);
+  localStorage.removeItem("blueq_pending_checkout");
 }
