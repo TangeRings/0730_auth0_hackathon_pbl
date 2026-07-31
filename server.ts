@@ -127,6 +127,33 @@ Generate a detailed 4-milestone project where students produce real verifiable e
     }
   });
 
+  // API Route: Retrieve a Stripe Checkout Session (used to confirm payment after redirect)
+  app.get("/api/checkout-session", async (req, res) => {
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) {
+      return res.status(500).json({ error: "Server misconfiguration: STRIPE_SECRET_KEY is not set." });
+    }
+    const sessionId = req.query.session_id as string;
+    if (!sessionId) {
+      return res.status(400).json({ error: "session_id query parameter is required." });
+    }
+    try {
+      const stripe = new Stripe(stripeKey);
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      return res.json({
+        paid: session.payment_status === "paid",
+        reason: session.metadata?.reason ?? null,
+        organizationId: session.metadata?.organizationId ?? null,
+        stripeCustomerId: session.customer ?? null,
+        stripeSubscriptionId: session.subscription ?? null,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("Stripe session retrieval error:", msg);
+      return res.status(500).json({ error: `Stripe error: ${msg}` });
+    }
+  });
+
   // API Route: Create Stripe Checkout Session
   app.post("/api/create-checkout-session", async (req, res) => {
     // #region agent log

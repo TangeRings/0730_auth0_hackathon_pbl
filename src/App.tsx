@@ -29,7 +29,13 @@ import {
   resetDemoData,
 } from "./services/dataService";
 import { candidateStudents } from "./data/mockData";
-import { startMockCheckout, publishPortfolio } from "./services/billingService";
+import {
+  startMockCheckout,
+  publishPortfolio,
+  savePendingCheckout,
+  getPendingCheckout,
+  clearPendingCheckout,
+} from "./services/billingService";
 
 import { AppShell } from "./components/AppShell";
 import { CourseInput } from "./components/CourseInput";
@@ -122,16 +128,72 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const status = params.get("checkout");
-    if (status === "success" || status === "cancelled") {
-      setCheckoutBanner(status);
-      if (status === "cancelled") {
-        triggerToast("Checkout cancelled — your plan is unchanged.");
-      }
-      // Strip checkout params from the URL without reloading
-      params.delete("checkout");
-      params.delete("session_id");
-      const newSearch = params.toString();
-      window.history.replaceState({}, "", newSearch ? `?${newSearch}` : window.location.pathname);
+    if (!status) return;
+
+    // Strip checkout params from the URL immediately without reloading
+    params.delete("checkout");
+    const sessionId = params.get("session_id") ?? "";
+    params.delete("session_id");
+    window.history.replaceState({}, "", params.toString() ? `?${params.toString()}` : window.location.pathname);
+
+    if (status === "cancelled") {
+      triggerToast("Checkout cancelled — your plan is unchanged.");
+      clearPendingCheckout();
+      return;
+    }
+
+    if (status === "success" && sessionId) {
+      // Show confirming banner while we verify with Stripe
+      setCheckoutBanner("success");
+
+      fetch(`/api/checkout-session?session_id=${encodeURIComponent(sessionId)}`)
+        .then((r) => r.json())
+        .then((data: {
+          paid: boolean;
+          reason: string | null;
+          organizationId: string | null;
+          stripeCustomerId: string | null;
+          stripeSubscriptionId: string | null;
+        }) => {
+          if (!data.paid) {
+            // Payment not confirmed — keep the banner up
+            return;
+          }
+
+          // Upgrade subscription in localStorage + React state
+          const updatedSub = saveSubscription({
+            organizationId: data.organizationId ?? "org-acme",
+            plan: "cohort_pro",
+            status: "active",
+            stripeCustomerId: data.stripeCustomerId ?? undefined,
+            stripeSubscriptionId: data.stripeSubscriptionId ?? undefined,
+          });
+          setSubscription(updatedSub);
+          setCheckoutBanner(null);
+
+          const pending = getPendingCheckout();
+          const reason = data.reason ?? pending?.reason;
+
+          if (reason === "seat_limit") {
+            const pendingStudentId = pending?.pendingStudentId;
+            if (pendingStudentId) {
+              setSelectedStudentIds((prev) =>
+                prev.includes(pendingStudentId) ? prev : [...prev, pendingStudentId]
+              );
+            }
+            setCurrentStep("roster");
+            triggerToast("Upgraded to Cohort Pro! 30 seats unlocked.");
+          } else if (reason === "portfolio_publish") {
+            const updated = publishPortfolio();
+            setPortfolio(updated);
+            setShowPublishedModal(true);
+          }
+
+          clearPendingCheckout();
+        })
+        .catch(() => {
+          // Network/server error — keep the confirming banner, don't crash
+        });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -230,6 +292,7 @@ export default function App() {
       if (selectedStudentIds.length >= maxSeats) {
         setPendingAttemptedStudentId(studentId);
         setUpgradeReason("seat_limit");
+        savePendingCheckout({ reason: "seat_limit", pendingStudentId: studentId });
         setShowUpgradeModal(true);
       } else {
         setSelectedStudentIds((prev) => [...prev, studentId]);
@@ -314,6 +377,7 @@ export default function App() {
       setShowPublishedModal(true);
     } else {
       setUpgradeReason("portfolio_publish");
+      savePendingCheckout({ reason: "portfolio_publish" });
       setShowUpgradeModal(true);
     }
   };

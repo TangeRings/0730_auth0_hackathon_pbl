@@ -3,6 +3,30 @@ import { getSubscription, saveSubscription, getPortfolio, savePortfolio } from "
 
 export type CheckoutReason = "seat_limit" | "portfolio_publish";
 
+const PENDING_CHECKOUT_KEY = "blueq_pending_checkout";
+
+export interface PendingCheckout {
+  reason: CheckoutReason;
+  pendingStudentId?: string | null;
+}
+
+export function savePendingCheckout(data: PendingCheckout): void {
+  localStorage.setItem(PENDING_CHECKOUT_KEY, JSON.stringify(data));
+}
+
+export function getPendingCheckout(): PendingCheckout | null {
+  try {
+    const raw = localStorage.getItem(PENDING_CHECKOUT_KEY);
+    return raw ? (JSON.parse(raw) as PendingCheckout) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingCheckout(): void {
+  localStorage.removeItem(PENDING_CHECKOUT_KEY);
+}
+
 /**
  * Real Stripe Checkout: POSTs to the Express server, then redirects the browser
  * to the Stripe-hosted payment page. Returns only if the request itself fails
